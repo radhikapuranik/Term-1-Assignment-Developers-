@@ -1,4 +1,7 @@
-import { db, loadConfig, loadWindowData } from "./db";
+import {
+  claimRun, finishRun, getBrief, getScheduledRun, insertRun, loadConfig, loadWindowData, saveBriefAndStats,
+  saveClassifications, setEmailStatus, setSourceStatus, upsertFetchedPosts, upsertMatches, type RunRow,
+} from "./db";
 import { collectPosts } from "./collect";
 import { computeStats, verifyMatches } from "./stats";
 import { classifyBatch, batches, classificationOrder } from "./classify";
@@ -19,18 +22,6 @@ export interface PipelineResult {
   message: string;
 }
 
-interface RunRow {
-  id: string;
-  run_type: RunType;
-  week_key: string | null;
-  anchor: string;
-  status: "running" | "sent" | "partial" | "failed";
-  attempts: number;
-  source_status: SourceStatus | null;
-  error: string | null;
-  started_at: string;
-}
-
 const MAX_ATTEMPTS = 3;
 const RUNNING_STALE_MS = 10 * 60 * 1000;
 const CLASSIFY_BUDGET_MS = 35_000; // stop starting new Gemini batches after this, so a run fits in 60 s
@@ -43,42 +34,34 @@ function logFailure(runId: string | null, stage: string, source: string, message
 }
 
 async function guard(anchor: Date, runType: RunType): Promise<{ skip: PipelineResult } | { run: RunRow }> {
-  const sb = db();
   if (runType === "manual") {
-    const ins = await sb.from("runs").insert({ run_type: "manual", anchor: anchor.toISOString(), status: "running", attempts: 1 }).select("*").single();
-    if (ins.error) throw new Error(`could not create run: ${ins.error.message}`);
-    return { run: ins.data as RunRow };
+    const run = await insertRun("manual", anchor, null);
+    if (!run) throw new Error("could not create run");
+    return { run };
   }
   const weekKey = anchor.toISOString();
-  const ex = await sb.from("runs").select("*").eq("week_key", weekKey).eq("run_type", "scheduled").maybeSingle();
-  if (ex.error) throw new Error(`could not read runs: ${ex.error.message}`);
-  const row = ex.data as RunRow | null;
+  const row = await getScheduledRun(weekKey);
   if (row) {
     if (row.status === "sent") return { skip: { status: "skipped", runId: row.id, message: "already sent" } };
     if (row.status === "running" && Date.now() - new Date(row.started_at).getTime() < RUNNING_STALE_MS)
       return { skip: { status: "skipped", runId: row.id, message: "a run for this week is already in progress" } };
     if (row.attempts >= MAX_ATTEMPTS)
       return { skip: { status: "skipped", runId: row.id, message: `maximum of ${MAX_ATTEMPTS} attempts reached` } };
-    const upd = await sb
-      .from("runs")
-      .update({ attempts: row.attempts + 1, status: "running", started_at: new Date().toISOString(), finished_at: null })
-      .eq("id", row.id)
-      .eq("attempts", row.attempts) // compare-and-set so two callers cannot both take the run
-      .select("*");
-    if (upd.error) throw new Error(upd.error.message);
-    if (!upd.data?.length) return { skip: { status: "skipped", runId: row.id, message: "another caller took this run" } };
-    return { run: upd.data[0] as RunRow };
+    const claimed = await claimRun(row.id, row.attempts);
+    if (!claimed) return { skip: { status: "skipped", runId: row.id, message: "another caller took this run" } };
+    return { run: claimed };
   }
-  const ins = await sb.from("runs").insert({ run_type: "scheduled", week_key: weekKey, anchor: weekKey, status: "running", attempts: 1 }).select("*").single();
-  if (ins.error) return { skip: { status: "skipped", runId: null, message: `another caller created this run (${ins.error.message})` } };
-  return { run: ins.data as RunRow };
+  const created = await insertRun("scheduled", anchor, weekKey);
+  if (!created) return { skip: { status: "skipped", runId: null, message: "another caller created this run first" } };
+  return { run: created };
 }
 
 async function finish(run: RunRow, status: "sent" | "partial" | "failed", errors: string[], sourceStatus?: SourceStatus) {
-  const patch: Record<string, unknown> = { status, finished_at: new Date().toISOString(), error: errors.length ? errors.join(" | ").slice(0, 4000) : null };
-  if (sourceStatus) patch.source_status = sourceStatus;
-  const { error } = await db().from("runs").update(patch).eq("id", run.id);
-  if (error) console.error(JSON.stringify({ level: "error", run_id: run.id, stage: "finish", source: "supabase", message: error.message }));
+  try {
+    await finishRun(run.id, status, errors.length ? errors.join(" | ").slice(0, 4000) : null, sourceStatus);
+  } catch (e) {
+    console.error(JSON.stringify({ level: "error", run_id: run.id, stage: "finish", source: "neon", message: (e as Error).message }));
+  }
 }
 
 const idempotencyKey = (run: RunRow) => (run.week_key ? `weekly-brief-${run.week_key}` : run.id);
@@ -91,10 +74,7 @@ async function deliver(run: RunRow, content: BriefContent, html: string, setting
     text: renderText(content, appUrl()),
     idempotencyKey: idempotencyKey(run),
   });
-  const patch = r.ok
-    ? { email_status: "sent", email_sent_at: new Date().toISOString(), email_error: null }
-    : { email_status: "failed", email_error: r.error ?? "unknown error" };
-  await db().from("briefs").update(patch).eq("run_id", run.id);
+  await setEmailStatus(run.id, r.ok, r.error);
   if (!r.ok) logFailure(run.id, "email", "resend", r.error ?? "unknown error", errors);
   return r.ok;
 }
@@ -126,19 +106,18 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
     const g = await stage("guard", () => guard(anchor, runType));
     if ("skip" in g) return g.skip;
     run = g.run;
-    const sb = db();
     console.log(JSON.stringify({ level: "info", run_id: run.id, stage: "start", run_type: runType, attempt: run.attempts, catchup: !!opts.catchup }));
 
     // Resume: a brief already exists, so only the email may still be missing.
-    const existing = await sb.from("briefs").select("*").eq("run_id", run.id).maybeSingle();
-    if (existing.data) {
-      const content = existing.data.content as BriefContent;
+    const existing = await getBrief(run.id);
+    if (existing) {
+      const content = existing.content as BriefContent;
       const { settings } = await loadConfig().catch(() => ({ settings: null }));
       const outcomes = run.source_status?.requests ?? [];
-      let emailOk = existing.data.email_status === "sent";
+      let emailOk = existing.email_status === "sent";
       if (!emailOk) {
         if (!settings) throw new Error("could not load settings to retry the email");
-        emailOk = await stage("email-retry", () => deliver(run!, content, (existing.data!.html as string) ?? renderEmailHtml(content, appUrl(), `/runs/${run!.id}`), settings, errors));
+        emailOk = await stage("email-retry", () => deliver(run!, content, existing.html ?? renderEmailHtml(content, appUrl(), `/runs/${run!.id}`), settings, errors));
       }
       const status = overallStatus(content, outcomes, emailOk);
       await finish(run, status, errors, run.source_status ?? undefined);
@@ -167,7 +146,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
       await finish(run, "failed", errors, sourceStatus);
       return { status: "failed", runId: run.id, message: "all sources failed; no brief produced" };
     }
-    await sb.from("runs").update({ source_status: sourceStatus }).eq("id", run.id);
+    await setSourceStatus(run.id, sourceStatus);
 
     // Verify matches in code, then store only posts that really match an active keyword.
     const matches = verifyMatches(fetched, topics);
@@ -177,14 +156,8 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
       const rows = fetched
         .filter((p) => matchedKeys.has(postKey(p.source, p.post_id)))
         .map((p) => ({ ...p, fetched_at: now.toISOString() }));
-      for (let i = 0; i < rows.length; i += 400) {
-        const { error } = await sb.from("posts").upsert(rows.slice(i, i + 400), { onConflict: "source,post_id" });
-        if (error) throw new Error(`posts upsert: ${error.message}`);
-      }
-      for (let i = 0; i < matches.length; i += 800) {
-        const { error } = await sb.from("post_matches").upsert(matches.slice(i, i + 800), { onConflict: "source,post_id,category,keyword" });
-        if (error) throw new Error(`post_matches upsert: ${error.message}`);
-      }
+      await upsertFetchedPosts(rows);
+      await upsertMatches(matches);
     });
 
     // Statistics come from the database, restricted to active pairs and to each window by created_at.
@@ -220,8 +193,11 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
           }
         }
         if (updated.length) {
-          const { error } = await sb.from("posts").upsert(updated, { onConflict: "source,post_id" });
-          if (error) logFailure(run!.id, "classify", "supabase", error.message, errors);
+          try {
+            await saveClassifications(updated);
+          } catch (e) {
+            logFailure(run!.id, "classify", "neon", (e as Error).message, errors);
+          }
         }
       }
     });
@@ -252,13 +228,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
     if (content.ai.status === "unavailable") content.ai.model = (() => { try { return geminiModel(); } catch { return null; } })();
 
     const html = renderEmailHtml(content, appUrl(), `/runs/${run.id}`);
-    await stage("save-brief", async () => {
-      await sb.from("weekly_stats").delete().eq("run_id", run!.id);
-      const { error: e1 } = await sb.from("weekly_stats").insert(stats.rows.map((r) => ({ ...r, run_id: run!.id })));
-      if (e1) throw new Error(`weekly_stats: ${e1.message}`);
-      const { error: e2 } = await sb.from("briefs").upsert({ run_id: run!.id, content, html, email_status: "pending" }, { onConflict: "run_id" });
-      if (e2) throw new Error(`briefs: ${e2.message}`);
-    });
+    await stage("save-brief", () => saveBriefAndStats(run!.id, content, html, stats.rows as unknown as Array<Record<string, unknown>>));
 
     const emailOk = await stage("email", () => deliver(run!, content, html, settings, errors));
     const status = overallStatus(content, outcomes, emailOk);

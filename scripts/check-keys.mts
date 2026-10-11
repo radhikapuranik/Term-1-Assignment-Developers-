@@ -1,7 +1,7 @@
 // Tests each key with a harmless call and reports "works" or "does not work, check X". Never prints a key value.
 // Usage: node --env-file=.env.local --import tsx scripts/check-keys.mts   (or: npm run check-keys)
 import { readFileSync, writeFileSync } from "node:fs";
-import { createClient } from "@supabase/supabase-js";
+import { q } from "../src/lib/db";
 import { listFlashModels, pickFlashModel } from "../src/lib/gemini";
 
 const env = (k: string) => (process.env[k] ?? "").trim();
@@ -16,18 +16,18 @@ function setEnvLine(name: string, value: string) {
   writeFileSync(file, lines.join("\n"));
 }
 
-// Supabase
-if (!env("SUPABASE_URL") || !env("SUPABASE_SERVICE_ROLE_KEY")) say("Supabase", false, "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is empty in .env.local");
+// Neon
+if (!env("DATABASE_URL")) say("Neon", false, "DATABASE_URL is empty in .env.local");
 else {
-  const sb = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
-  const t = await sb.from("topics").select("id", { count: "exact", head: true }).eq("active", true);
-  if (t.error) say("Supabase", false, `${t.error.message}. Check the URL and service_role key, and that supabase/schema.sql was run in the SQL Editor`);
-  else {
-    say("Supabase", true, `connected, ${t.count} active topics found`);
+  try {
+    const t = await q<{ n: string }>("select count(*) as n from topics where active");
+    say("Neon", true, `connected, ${t[0].n} active topics found`);
     if (env("RECIPIENT_EMAIL")) {
-      const u = await sb.from("settings").upsert({ key: "recipient_email", value: env("RECIPIENT_EMAIL") }, { onConflict: "key" });
-      say("Recipient email", !u.error, u.error ? u.error.message : "saved to the settings table (change it any time in Supabase)");
+      await q("insert into settings (key, value) values ('recipient_email', $1::jsonb) on conflict (key) do update set value = excluded.value", [JSON.stringify(env("RECIPIENT_EMAIL"))]);
+      say("Recipient email", true, "saved to the settings table (change it any time in Neon)");
     }
+  } catch (e) {
+    say("Neon", false, `${(e as Error).message}. Check DATABASE_URL, and run npm run db:setup if the tables are missing`);
   }
 }
 

@@ -1,8 +1,6 @@
--- Developer Community Pulse: database schema and seed data.
--- Paste this whole file into Supabase -> SQL Editor -> New query -> Run.
+-- Developer Community Pulse: database schema and seed data (plain Postgres, works on Neon).
+-- Apply with: npm run db:setup   (or paste into Neon console -> SQL Editor -> Run).
 -- Safe to run more than once.
-
-create extension if not exists pgcrypto;
 
 create table if not exists topics (
   id bigint generated always as identity primary key,
@@ -63,16 +61,7 @@ create table if not exists briefs (
   created_at timestamptz default now()
 );
 
--- Row Level Security: on, with no public policies. Only the server (service-role key) can read or write.
-alter table topics enable row level security;
-alter table settings enable row level security;
-alter table posts enable row level security;
-alter table post_matches enable row level security;
-alter table runs enable row level security;
-alter table weekly_stats enable row level security;
-alter table briefs enable row level security;
-
--- Seed settings (edit recipient_email in the Table Editor).
+-- Seed settings (edit recipient_email in Neon: Tables or SQL Editor).
 insert into settings (key, value) values
   ('recipient_email', '"change-me@example.com"'::jsonb),
   ('min_mentions', '5'::jsonb),

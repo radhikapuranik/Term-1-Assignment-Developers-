@@ -64,7 +64,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
 
       {!data.configured && (
         <div className="banner error" role="alert" style={{ marginTop: 24 }}>
-          <strong>Database not connected.</strong> Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the environment, then reload.
+          <strong>Database not connected.</strong> Set DATABASE_URL (your Neon connection string) in the environment, then reload.
         </div>
       )}
       {data.loadError && (
@@ -205,9 +205,9 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
           </section>
 
           <section aria-labelledby="h-topics">
-            <header><h2 id="h-topics">Monitored topics</h2><p>Edit these in Supabase, no code change needed. <Link href="/about">How the numbers are counted</Link>.</p></header>
+            <header><h2 id="h-topics">Monitored topics</h2><p>Edit these in Neon (Tables or SQL Editor), no code change needed. <Link href="/about">How the numbers are counted</Link>.</p></header>
             <div className="panel topics">
-              {cats.length === 0 ? <p className="muted">No active topics. Switch at least one keyword on in the topics table.</p> : cats.map((cat) => (
+              {cats.length === 0 ? <p className="muted">No active topics. Switch at least one keyword on in the topics table (Neon: Tables).</p> : cats.map((cat) => (
                 <div className="row" key={cat}>
                   <strong>{cat}</strong>
                   {data.topics.filter((t) => t.category === cat).map((t) => <span className="kw" key={t.id}>{t.keyword}</span>)}

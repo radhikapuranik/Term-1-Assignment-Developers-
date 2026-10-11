@@ -10,10 +10,11 @@
     "lint": "eslint .",
     "test": "vitest run",
     "check-keys": "node --env-file=.env.local --import tsx scripts/check-keys.mts",
-    "live-check": "tsx scripts/live-check.mts"
+    "live-check": "tsx scripts/live-check.mts",
+    "db:setup": "node --env-file=.env.local --import tsx scripts/db-setup.mts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.3",
+    "@neondatabase/serverless": "^1.2.0",
     "next": "^16.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

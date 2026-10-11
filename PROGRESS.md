@@ -9,7 +9,7 @@
 - 53 unit tests, typecheck, lint, build all pass.
 
 ## In progress
-- Checkpoint 1: waiting for keys (Supabase, Gemini, Resend + recipient email, Stack Exchange key).
+- Checkpoint 1: waiting for DATABASE_URL (Neon) in .env.local, then Gemini, Resend + recipient email, Stack Exchange key. Database layer migrated from Supabase to Neon (db/schema.sql, npm run db:setup).
 
 ## Next
 1. `npm run check-keys` (tests each key, picks GEMINI_MODEL, saves recipient email).
