@@ -9,13 +9,12 @@
 - 53 unit tests, typecheck, lint, build all pass.
 
 ## In progress
-- Checkpoint 1: waiting for DATABASE_URL (Neon) in .env.local, then Gemini, Resend + recipient email, Stack Exchange key. Database layer migrated from Supabase to Neon (db/schema.sql, npm run db:setup).
+- Nothing. App is live.
 
-## Next
-1. `npm run check-keys` (tests each key, picks GEMINI_MODEL, saves recipient email).
-2. Live pipeline run, real email, idempotency check, 401/passcode/cooldown checks, SIMULATE_FAIL demos.
-3. Playwright screenshots (desktop/phone, light/dark; data, empty, partial states) into docs/screenshots/.
-4. README, Checkpoint 2 (GitHub + Vercel login), deploy, live Run now, sync Excel, SUBMISSION.md.
+## Done (deployment)
+- Pushed to https://github.com/radhikapuranik/Term-1-Assignment-Developers-
+- Vercel project developer-community-pulse, production URL https://developer-community-pulse.vercel.app, env vars set, both crons registered.
+- Live Run now succeeded (sent, AI ok). Excel synced. SUBMISSION.md written.
 
 ## Open questions
-- None.
+- Recommend resetting the Neon password (it was pasted in chat), then update DATABASE_URL in .env.local and on Vercel.
