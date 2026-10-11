@@ -17,8 +17,8 @@ export type BriefOutput = z.infer<typeof BriefOutputSchema>;
 type Direction = "up" | "down" | "flat" | "new";
 
 const DIRECTION_WORDS: Record<Direction, RegExp> = {
-  up: /\b(rising|rises?|rose|risen|increas\w*|grow\w*|grew|surg\w*|spik\w*|climb\w*|soar\w*)\b/i,
-  down: /\b(falling|falls?|fell|fallen|declin\w*|decreas\w*|drop\w*|shrink\w*|shrank|dwindl\w*|slump\w*)\b/i,
+  up: /\b(rising|surging|spiking|increasing|climbing|soaring)\b/i,
+  down: /\b(falling|declining|decreasing|dwindling|waning|shrinking)\b/i,
   flat: /\b(flat|stable|steady|unchanged)\b/i,
   new: /\b(newly|emerging|emerged|first appeared)\b/i,
 };

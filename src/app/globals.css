@@ -148,7 +148,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--hair);
   table.stack td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-align: left; font-weight: 600; flex: none; }
   table.stack td.first { display: block; text-align: left; font-weight: 500; padding-top: 8px; }
   table.stack td.first::before { content: none; }
-  table.stack td.bars { display: block; }
+  table.stack td.bars { display: block; text-align: left; }
   table.stack td.bars::before { display: block; margin-bottom: 4px; }
   table.stack tr.detail { background: var(--surface); }
   table.stack tr.detail td { display: block; text-align: left; }

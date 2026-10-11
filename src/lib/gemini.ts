@@ -18,13 +18,15 @@ interface CallOptions {
   prompt: string;
   responseSchema: Record<string, unknown>;
   temperature: number;
+  /** Epoch ms after which no new attempt is started, so a run stays inside the function time limit. */
+  deadlineMs?: number;
 }
 
-async function callOnce(o: CallOptions, extraUser?: string): Promise<{ status: number; text: string }> {
+async function callOnce(o: CallOptions, timeoutMs: number, extraUser?: string): Promise<{ status: number; text: string }> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new GeminiError("GEMINI_API_KEY is not set");
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), CALL_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`${BASE}/models/${geminiModel()}:generateContent`, {
       method: "POST",
@@ -37,6 +39,7 @@ async function callOnce(o: CallOptions, extraUser?: string): Promise<{ status: n
           temperature: o.temperature,
           responseMimeType: "application/json",
           responseSchema: o.responseSchema,
+          thinkingConfig: { thinkingBudget: 0 }, // structured extraction does not need extended thinking, and it is much faster
         },
       }),
     });
@@ -59,8 +62,13 @@ export async function geminiJson<T>(
   let lastValid: { data: T; violations: string[] } | null = null;
   let lastError = "no response";
   for (let attempt = 0; attempt <= 2; attempt++) {
+    const remaining = o.deadlineMs ? o.deadlineMs - Date.now() : CALL_TIMEOUT_MS;
+    if (remaining < 4000) {
+      lastError = lastError === "no response" ? "ran out of time before the run limit" : lastError;
+      break;
+    }
     try {
-      const r = await callOnce(o, feedback);
+      const r = await callOnce(o, Math.min(CALL_TIMEOUT_MS, remaining), feedback);
       if (r.status === 404) {
         const msg = `Gemini model not found: "${geminiModel()}". Check GEMINI_MODEL against the models your key can use.`;
         console.error(JSON.stringify({ stage: "gemini", source: "gemini", message: msg }));

@@ -195,6 +195,7 @@ export async function generateCommentary(
   base: BriefContent,
   evidencePosts: Map<string, PostRow[]>,
   unresolved: UnresolvedItem[],
+  deadlineMs?: number,
 ): Promise<CheckedBrief> {
   const input = {
     categories: base.categories.map((c) => ({
@@ -223,6 +224,7 @@ export async function generateCommentary(
     prompt: `Data:\n${JSON.stringify(input)}`,
     responseSchema: BRIEF_SCHEMA,
     temperature: 0.3,
+    deadlineMs,
     zod: BriefOutputSchema,
     check: (out) => checkBrief(out, ctx).violations,
   });

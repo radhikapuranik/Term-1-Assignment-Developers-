@@ -24,7 +24,9 @@ export interface PipelineResult {
 
 const MAX_ATTEMPTS = 3;
 const RUNNING_STALE_MS = 10 * 60 * 1000;
-const CLASSIFY_BUDGET_MS = 35_000; // stop starting new Gemini batches after this, so a run fits in 60 s
+const CLASSIFY_PARALLEL = 4;
+const RUN_DEADLINE_MS = 54_000; // Gemini attempts stop starting after this, leaving time to save and email
+const CLASSIFY_BUDGET_MS = 30_000; // stop starting new Gemini batches after this, so a run fits in 60 s
 
 const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
@@ -174,9 +176,9 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
       const todo = classificationOrder(inScope.filter((p) => !p.classified_at)).slice(0, settings.classify_cap);
       const groups = batches(todo);
       const byKey = new Map(posts.map((p) => [postKey(p.source, p.post_id), p]));
-      for (let i = 0; i < groups.length; i += 2) {
+      for (let i = 0; i < groups.length; i += CLASSIFY_PARALLEL) {
         if (Date.now() - started > CLASSIFY_BUDGET_MS) break;
-        const results = await Promise.allSettled(groups.slice(i, i + 2).map((g) => classifyBatch(g)));
+        const results = await Promise.allSettled(groups.slice(i, i + CLASSIFY_PARALLEL).map((g) => classifyBatch(g)));
         const updated: PostRow[] = [];
         for (const r of results) {
           if (r.status === "rejected") {
@@ -216,7 +218,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
       }
       try {
         const evidence = new Map(content.categories.map((c) => [c.category, evidenceFor(c.category, inScope, dbMatches, w.current.from, anchor, 8)]));
-        const checked = await generateCommentary(content, evidence, unresolved);
+        const checked = await generateCommentary(content, evidence, unresolved, started + RUN_DEADLINE_MS);
         content = applyCommentary(content, checked, inScope);
         if (checked.violations.length) logFailure(run!.id, "brief", "gemini", `dropped AI text after retries: ${checked.violations.join("; ").slice(0, 500)}`, errors);
       } catch (e) {
