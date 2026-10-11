@@ -1,0 +1,11 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+Claude_Code_Master_Prompt.md.docx
+Problem Statement 2.pdf
