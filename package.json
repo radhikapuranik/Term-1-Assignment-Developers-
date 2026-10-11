@@ -8,7 +8,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check-keys": "node --env-file=.env.local --import tsx scripts/check-keys.mts",
+    "live-check": "tsx scripts/live-check.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
