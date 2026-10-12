@@ -56,3 +56,23 @@ export function shortName(category: string): string {
 }
 
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/** A category backed by only 1 or 2 posts this week is labelled "thin evidence". */
+export const isThin = (c: { current_count: number }) => c.current_count >= 1 && c.current_count <= 2;
+
+export interface HistoryPoint { label: string; value: number; incomplete: boolean }
+
+/**
+ * Trend history built only from stored numbers: earlier scheduled weeks (oldest first), then the SAME
+ * "last week" and "this week" values the pain-points table shows, so the three can never disagree.
+ */
+export function buildHistory(
+  cat: { previous_count: number; current_count: number; data_status: "complete" | "incomplete" },
+  older: Array<{ label: string; current_count: number; data_status: "complete" | "incomplete" }>,
+): HistoryPoint[] {
+  return [
+    ...older.map((o) => ({ label: o.label, value: o.current_count, incomplete: o.data_status === "incomplete" })),
+    { label: "last week", value: cat.previous_count, incomplete: cat.data_status === "incomplete" },
+    { label: "this week", value: cat.current_count, incomplete: cat.data_status === "incomplete" },
+  ];
+}

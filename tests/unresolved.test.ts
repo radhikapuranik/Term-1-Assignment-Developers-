@@ -36,3 +36,21 @@ describe("potentially unresolved", () => {
     expect(items.map((i) => i.post_id)).toEqual(["b", "a"]);
   });
 });
+
+describe("unresolved: exclusions and signals", () => {
+  const hn = (over: Partial<PostRow>) => ({ ...base, comments: 0, ...over });
+  it("excludes Show HN and launch posts", () => {
+    expect(unresolvedReason(hn({ title: "Show HN: Lask, a task runner" }))).toBeNull();
+    expect(unresolvedReason(hn({ title: "Launch HN: Acme (YC S26) - code review bot" }))).toBeNull();
+  });
+  it("excludes blog and announcement posts", () => {
+    expect(unresolvedReason(hn({ title: "Introducing our new CI dashboard" }))).toBeNull();
+    expect(unresolvedReason(hn({ title: "How we cut CI time in half" }))).toBeNull();
+    expect(unresolvedReason({ ...base, source: "devto", tags: ["discuss", "tutorial"], comments: 0 })).toBeNull();
+  });
+  it("requires a question or complaint signal for Hacker News and Dev.to", () => {
+    expect(unresolvedReason(hn({ title: "A note on pipelines", sentiment: "neutral", seeking_help: false }))).toBeNull();
+    expect(unresolvedReason(hn({ title: "Why is our CI so slow?", sentiment: "neutral", seeking_help: false }))).toBe(REASON_HN);
+    expect(unresolvedReason({ ...base, source: "devto", title: "Thoughts on reviews", tags: ["discuss"], comments: 0, sentiment: "neutral", seeking_help: false })).toBeNull();
+  });
+});

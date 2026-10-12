@@ -38,6 +38,8 @@ export default async function About() {
           <li>A mention is one unique post. If a post matches two keywords in the same category, it counts once for that category.</li>
           <li>If a post matches two different categories, it counts once in each. The overall total counts every post once.</li>
           <li>The keyword table counts unique posts per keyword the same way.</li>
+          <li>Because a post can count in more than one category, category totals can add up to more than &ldquo;unique posts&rdquo;. Dev.to is fetched by tag and filtered by keyword in code.</li>
+          <li>A category backed by only 1 or 2 posts this week is marked &ldquo;thin evidence&rdquo;.</li>
         </ul>
 
         <h2>Trends</h2>
@@ -56,10 +58,10 @@ export default async function About() {
         <p>Gemini Flash is the only AI used. It labels posts (relevant, sentiment, a short pain point, whether the author asks for help) and writes the summary text from numbers and posts that the code gives it. It never produces a number or a link. Our code rejects any AI text that contains a digit, a percentage or a URL, or that contradicts the trend label. Every number, trend and link on the page is looked up in the database. If the AI is unavailable, the brief is sent with the counts only and says so.</p>
 
         <h2>&ldquo;Potentially unresolved&rdquo;</h2>
-        <p>We flag a discussion when the source shows few replies at the time we looked: a Stack Overflow question with no answers or no accepted or upvoted answer, a Hacker News question or complaint with at most one comment, or a Dev.to help or discussion post with no comments. We do not read the replies, so we never claim a problem is unsolved. Answers may arrive later, so each item shows the fetch date and a link to verify.</p>
+        <p>We never flag Show HN or blog and announcement posts, and a post needs a question or complaint signal (a Stack Overflow post is a question by nature). We flag a discussion when the source shows few replies at the time we looked: a Stack Overflow question with no answers or no accepted or upvoted answer, a Hacker News question or complaint with at most one comment, or a Dev.to help or discussion post with no comments. We do not read the replies, so we never claim a problem is unsolved. Answers may arrive later, so each item shows the fetch date and a link to verify.</p>
 
         <h2>Monitored topics</h2>
-        <p>These live in a Neon Postgres table. Add, edit or switch them off in Neon (Tables or SQL Editor), with no code change.</p>
+        <p>Config and history live in Neon Postgres, the Supabase/Neon option allowed by the course stack. These live in a Neon Postgres table. Add, edit or switch them off in Neon (Tables or SQL Editor), with no code change.</p>
         {cats.length === 0 ? <p className="muted">No active topics.</p> : (
           <ul>{cats.map((c) => <li key={c}><strong>{c}</strong>: {data.topics.filter((t) => t.category === c).map((t) => t.keyword).join(", ")}</li>)}</ul>
         )}

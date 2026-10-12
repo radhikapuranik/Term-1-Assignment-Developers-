@@ -183,6 +183,7 @@ mark.hl { background: linear-gradient(transparent 55%, var(--hl) 55% 90%, transp
 .chip.new { color: var(--new); } .chip.incomplete { color: var(--incomplete); } .chip.insufficient, .chip.zero { color: var(--muted); border-color: var(--hair); }
 .chip.status-sent { color: var(--falling); } .chip.status-partial { color: var(--incomplete); } .chip.status-failed { color: var(--err); } .chip.status-running { color: var(--new); }
 .badge { font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 4px; border: 1px solid var(--hair); color: var(--muted); text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; background: var(--surface); }
+.tag.thin { color: var(--incomplete); border-color: var(--incomplete); }
 .tag { font-family: var(--mono); font-size: 11px; color: var(--new); border: 1px dashed var(--new); border-radius: 999px; padding: 0 8px; white-space: nowrap; }
 
 /* ===== Number tooltips ===== */

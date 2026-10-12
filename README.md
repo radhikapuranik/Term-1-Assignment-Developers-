@@ -2,6 +2,7 @@
 
 A weekly developer-community intelligence digest for a product manager at a code review automation startup. Every Friday at 8:00 AM IST it reads live discussions from Hacker News, Dev.to and Stack Overflow, counts how often each pain point appears this week versus last week, flags potentially unresolved discussions, emails a brief and shows the same brief on a public dashboard.
 
+- Config and history live in Neon Postgres, the Supabase/Neon option allowed by the course stack.
 - Built with Next.js (App Router, TypeScript), Neon Postgres, Gemini Flash (the only AI), Resend, Vercel Cron.
 - Components Map: `PM_Developer_Assignment_Components_Map.xlsx`.
 
@@ -31,7 +32,7 @@ One anchor timestamp `A` per run. Current window = `[A - 7d, A)`, previous = `[A
 
 ### Potentially unresolved
 
-Source-specific evidence, always with a reason and link: Stack Overflow questions with no answers (or no accepted or upvoted answer), Hacker News questions or complaints with 0 or 1 comments, Dev.to `help` or `discuss` posts with no comments. Replies are never read, so the app never claims a problem is "unsolved".
+Show HN and blog or announcement posts are excluded and every candidate needs a question or complaint signal. Source-specific evidence, always with a reason and link: Stack Overflow questions with no answers (or no accepted or upvoted answer), Hacker News questions or complaints with 0 or 1 comments, Dev.to `help` or `discuss` posts with no comments. Replies are never read, so the app never claims a problem is "unsolved".
 
 ## Setup
 

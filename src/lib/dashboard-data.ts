@@ -73,7 +73,11 @@ export async function loadDashboard(runId?: string): Promise<DashboardData> {
       ? q<NonNullable<DashboardData["brief"]>>("select content, email_status, email_sent_at, email_error from briefs where run_id = $1", [shown.id])
       : Promise.resolve([]);
 
-    const sparkRunIds = runs.filter((r) => hasBrief.has(r.id)).slice(0, 12).map((r) => r.id);
+    // History: earlier scheduled weeks only (older than last week). Last week and this week come from the shown brief itself.
+    const cutoff = shown ? new Date(shown.anchor).getTime() - 7 * 24 * 3600 * 1000 - 3600 * 1000 : 0;
+    const sparkRunIds = runs
+      .filter((r) => r.run_type === "scheduled" && hasBrief.has(r.id) && new Date(r.anchor).getTime() < cutoff)
+      .sort((a, b) => b.anchor.localeCompare(a.anchor)).slice(0, 10).map((r) => r.id);
     const anchors = new Map(runs.map((r) => [r.id, r.anchor]));
     const sparkPromise = sparkRunIds.length
       ? q<{ run_id: string; category: string; current_count: number; data_status: "complete" | "incomplete" }>(

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { healthySources } from "@/lib/health";
-import { formatIst, relativeTime } from "@/lib/format";
-import { pickHighlights, pulseSpikes, ratioNote } from "@/lib/highlights";
+import { formatIst, formatIstShort, relativeTime } from "@/lib/format";
+import { buildHistory, isThin, pickHighlights, pulseSpikes, ratioNote } from "@/lib/highlights";
+import { runNote } from "@/lib/run-note";
 import { SOURCE_NAMES, SOURCES } from "@/lib/types";
 import { changeText } from "@/lib/brief";
 import { PainTable } from "./PainTable";
@@ -83,7 +84,6 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
   const trendsKnown = c ? c.categories.some((x) => x.data_status === "complete") : true; // false when every category is missing data
   const byCat = new Map<string, typeof data.spark>();
   for (const p of data.spark) byCat.set(p.category, [...(byCat.get(p.category) ?? []), p]);
-  const sparkRuns = new Set(data.spark.map((p) => p.run_id)).size;
   const cats = [...new Set(data.topics.map((t) => t.category))];
   const ok = data.configured && !data.loadError && !data.notFound;
   const spikes = c ? pulseSpikes(c.categories) : null;
@@ -275,27 +275,25 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
             <section id="pain" aria-labelledby="h-pain">
               <SecHead idx="03 / PAIN POINTS" title="Pain points, week on week" hid="h-pain" desc="Mentions are unique posts per category. Open a row for its keywords and best evidence." />
               <PainTable categories={c.categories} minMentions={minMentions} anchor={c.anchor} />
+              <p className="small muted measure" style={{ marginTop: 16 }}>A post can count in more than one category, so category totals can add up to more than &ldquo;unique posts&rdquo;. Dev.to is fetched by tag and filtered by keyword in code.</p>
             </section>
 
             <section id="trends" aria-labelledby="h-trend">
-              <SecHead idx="04 / TRENDS" title="Trend history" hid="h-trend" desc="Mentions per category across past runs, oldest to newest. Hollow dots mean incomplete data." />
-              {sparkRuns < 2 ? (
-                <p className="note">History appears here once there are two or more runs. Each run adds one point per category.</p>
-              ) : (
-                <div className="sparks">
-                  {c.categories.map((cat) => {
-                    const pts = (byCat.get(cat.category) ?? []).sort((a, b) => a.anchor.localeCompare(b.anchor));
-                    if (pts.length < 2) return null;
-                    return (
-                      <div className="spark" key={cat.category}>
-                        <span className="t">{cat.category}</span>
-                        <Sparkline values={pts.map((p) => p.current_count)} incomplete={pts.map((p) => p.data_status === "incomplete")} label={`${cat.category}: ${pts.map((p) => p.current_count).join(", ")} mentions across runs`} />
-                        <span className="endnum">{pts[0].current_count} to {pts[pts.length - 1].current_count} over {pts.length} runs</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <SecHead idx="04 / TRENDS" title="Trend history" hid="h-trend" desc="Earlier Fridays, then last week and this week, all from the same stored numbers as the table above. Hollow dots mean incomplete data." />
+              <div className="sparks">
+                {c.categories.map((cat) => {
+                  const older = (byCat.get(cat.category) ?? []).sort((a, b) => a.anchor.localeCompare(b.anchor)).map((p) => ({ label: formatIstShort(p.anchor).slice(0, -6), current_count: p.current_count, data_status: p.data_status }));
+                  const pts = buildHistory(cat, older);
+                  return (
+                    <div className="spark" key={cat.category}>
+                      <span className="t">{cat.category}</span>
+                      <Sparkline values={pts.map((p) => p.value)} incomplete={pts.map((p) => p.incomplete)} label={`${cat.category}: ${pts.map((p) => `${p.label} ${p.value}`).join(", ")} mentions`} />
+                      <span className="endnum">{pts.length > 2 ? `${pts.map((p) => p.value).join(" → ")}` : `last week ${cat.previous_count} → this week ${cat.current_count}`}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {data.spark.length === 0 && <p className="small muted" style={{ marginTop: 16 }}>Earlier weeks are added here after each Friday run.</p>}
             </section>
 
             <section id="keywords" aria-labelledby="h-kw">
@@ -308,7 +306,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
               <div className="cat-insights">
                 {c.categories.map((cat) => (
                   <div className="cat" key={cat.category}>
-                    <h3>{cat.category}</h3>
+                    <h3>{cat.category}{isThin(cat) && <> <span className="tag thin">thin evidence</span></>}</h3>
                     <div className="body">
                       {cat.headline && <p className="measure">{cat.headline}</p>}
                       {cat.pain_points.length === 0 && cat.opportunities.length === 0 ? (
@@ -391,7 +389,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
                 <div className="tablewrap">
                   <table className="stack">
                     <caption className="sr-only">Past runs</caption>
-                    <thead><tr><th scope="col">Started (IST)</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Window ends (IST)</th><th scope="col" className="num">Attempts</th><th scope="col">Brief</th></tr></thead>
+                    <thead><tr><th scope="col">Started (IST)</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Window ends (IST)</th><th scope="col" className="num">Attempts</th><th scope="col">Note</th><th scope="col">Brief</th></tr></thead>
                     <tbody>
                       {data.runs.map((r) => (
                         <tr key={r.id}>
@@ -400,6 +398,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
                           <td data-label="Status"><StatusChip status={r.status} /></td>
                           <td data-label="Window ends">{formatIst(r.anchor)}</td>
                           <td className="num" data-label="Attempts">{r.attempts}</td>
+                          <td data-label="Note" className="small">{runNote(r) ?? <span className="muted">—</span>}</td>
                           <td data-label="Brief">{r.has_brief ? <Link href={`/runs/${r.id}`}>Open brief</Link> : <span className="muted">none</span>}</td>
                         </tr>
                       ))}
@@ -414,6 +413,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
         <footer>
           <p><Link href="/about">Methodology: how the numbers are counted</Link></p>
           <p>Data: <a href="https://hn.algolia.com/api" target="_blank" rel="noopener noreferrer">Hacker News (Algolia)</a>, <a href="https://developers.forem.com/api" target="_blank" rel="noopener noreferrer">Dev.to</a>, <a href="https://api.stackexchange.com" target="_blank" rel="noopener noreferrer">Stack Exchange</a>. AI: Gemini Flash. Motion: GSAP.</p>
+          <p>Config and history live in Neon Postgres, the Supabase/Neon option allowed by the course stack.</p>
           <p>The Friday 8:00 AM IST schedule may fire anywhere within its hour on the free Vercel plan. A catch-up job runs an hour later.</p>
         </footer>
       </main>

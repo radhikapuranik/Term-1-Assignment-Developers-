@@ -4,7 +4,7 @@ import type { BriefCategory } from "@/lib/brief";
 import { changeText } from "@/lib/brief";
 import { labelToKind } from "@/lib/trend";
 import { formatIstShort } from "@/lib/format";
-import { slug } from "@/lib/highlights";
+import { isThin, slug } from "@/lib/highlights";
 import { NumberTip } from "./NumberTip";
 import { PairedBars, SourceBadge, TrendChip, trendExplain } from "./ui";
 
@@ -60,6 +60,7 @@ export function PainTable({ categories, minMentions, anchor }: { categories: Bri
                         <span className="name">{c.category}</span>
                       </button>
                       {c.recently_added && <> <span className="tag">recently added</span></>}
+                      {isThin(c) && <> <span className="tag thin">thin evidence</span></>}
                     </td>
                     <td className="num" data-label="This week"><NumberTip text={how(c, 0)}><span data-count={c.current_count} suppressHydrationWarning>{c.current_count}</span></NumberTip></td>
                     <td className="num" data-label="Last week"><NumberTip text={how(c, 1)}>{c.previous_count}</NumberTip></td>
