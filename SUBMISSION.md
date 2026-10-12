@@ -5,6 +5,10 @@
 - **Components Map:** `PM_Developer_Assignment_Components_Map.xlsx` (in the repo)
 - **Screenshots:** `docs/screenshots/` (dashboard with data, empty state and partial-failure state; desktop and phone, light and dark)
 
+## Design in two sentences
+
+The dashboard is built around one idea, "The Pulse": a hand-drawn pulse line generated from the real statistics runs across the top of the page, with spikes over the categories that are rising, plus a "This week in 10 seconds" block for a reader with ten seconds. Motion is made with GSAP (ScrollTrigger, loaded after the page is visible, and fully static for people who prefer reduced motion); the full concept, measurements and screenshots are in `docs/DESIGN.md` and `docs/screenshots/`.
+
 ## Where the Run now passcode is
 
 In the file `.env.local` in the project folder, on the line `RUN_NOW_PASSCODE=`. (Mac Finder hides files that start with a dot: press Cmd+Shift+. to see it.) The same value is stored as an environment variable on Vercel. The passcode is never in the code or in the browser.
@@ -54,7 +58,13 @@ Settings (minimum mentions, flat threshold, Dev.to tags, recipient email) are ro
 - **Empty-state screenshots** were taken from the real app by temporarily swapping in empty `runs` and `briefs` tables, then restoring the originals.
 - **Verification emails:** testing sent several real emails to the recipient (live runs, failure simulations and one idempotency test).
 
-## Verification results
+## Verification results (design upgrade)
+
+- Live Lighthouse, mobile: Performance 97 to 99, Accessibility 100, Best Practices 100, SEO 100, LCP 2.0 to 2.5 s, no layout shift. Desktop: 100 on all four.
+- Keyboard-only walkthrough and axe (contrast included): all pass, 0 violations, light and dark, desktop and phone.
+- The page works with JavaScript off, with reduced motion and on a slow network. After a fresh real run, every number on the page matches the database.
+
+## Verification results (pipeline)
 
 - 53 unit tests, typecheck, lint and production build pass.
 - Live run: 1,005 unique posts fetched from 39 requests across the three sources; both windows contain data on the first run.

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "check-keys": "node --env-file=.env.local --import tsx scripts/check-keys.mts",
     "live-check": "tsx scripts/live-check.mts",
-    "db:setup": "node --env-file=.env.local --import tsx scripts/db-setup.mts"
+    "db:setup": "node --env-file=.env.local --import tsx scripts/db-setup.mts",
+    "a11y-check": "node --import tsx scripts/a11y-check.mts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

@@ -69,3 +69,32 @@ Magnetic pull and press feedback on buttons; a soft expand on table rows; chips 
 ## Rules we keep
 
 Every figure on screen comes from the database. Nothing is invented for visuals. No autoplay sound, no hidden or custom cursor, no video or 3D. Gemini still never produces a number or a link.
+
+## As built, and how it was checked
+
+**What shipped.** The hero (display headline with real numbers inline, squiggle under "struggling", pulse line generated from the stored statistics), a "This week in 10 seconds" block (biggest riser with a circled number and an arrow annotation such as "1.2x last week" computed from the counts, biggest faller, most important potentially unresolved discussion), sticky navigation with scroll-spy and a small copy of the pulse line, the Run now progress story, number explanations on hover, focus and tap, and an optional light/dark switch. When a source is down, the headline says "Trends unavailable, data incomplete" instead of claiming "0 rising", and the pulse line goes flat with amber dots.
+
+**Decisions.**
+- ScrollTrigger only, no ScrollSmoother (it would break the sticky navigation and the fixed Run now panel and tooltips).
+- All motion lives in one lazily loaded module so GSAP never delays first paint; every animation sits inside `gsap.matchMedia`, so "reduce motion" gives a fully static page; parallax is off below 721 px.
+- Section headers fade and rise; tables, paragraphs, buttons and banners never move. Buttons have a very small magnetic pull (pointer devices only).
+- The hero numbers are static (they do not count up) so the first thing you read is never briefly wrong. Other numbers count up once in place and always end on the server-rendered text.
+- The page is pre-rendered HTML (refreshed every minute and after every run), with no loading screen in front of it, so it is fully readable with JavaScript off.
+- The tables stack into cards below 900 px (pain points) and 720 px (keywords, history).
+
+**Measured on the live URL (https://developer-community-pulse.vercel.app).**
+
+| | Performance | Accessibility | Best Practices | SEO | LCP | Layout shift |
+|---|---|---|---|---|---|---|
+| Mobile (3 runs) | 97, 98, 99 | 100 | 100 | 100 | 2.0 to 2.5 s | 0 |
+| Desktop (2 runs) | 100 | 100 | 100 | 100 | 0.4 to 0.5 s | 0 |
+
+- **Keyboard walkthrough** (scripted, `scripts/a11y-check.mts`): skip link, 60 consecutive tab stops all with a visible focus ring, theme switch, table row expand, number explanation and Escape, Copy brief ("Copied"), Run now, navigation with scroll-spy: all pass.
+- **axe (WCAG A and AA, including contrast):** 0 violations in light and dark, at 1440 px and 360 px.
+- **Overflow:** none at 320, 360, 414, 600, 768, 899, 901, 1024, 1280 and 1920 px.
+- **Numbers:** after a fresh real run, every category, keyword and total on the redesigned page matches the database (`scripts/verify-numbers.mts`).
+- **Screenshots** in `docs/screenshots/`: data, empty and partial-failure states at 360, 768 and 1440 px in light and dark; the Run now panel (form, wrong passcode, stages, done); reduced motion, no JavaScript and slow network runs on the live site.
+
+**Two critique-and-improve rounds (what changed because of them).**
+1. Round 1: count-up numbers were stuck at 0 after a React double-run (fixed: the server text is the source of truth); the squiggle was broken by dash-drawing and non-scaling strokes; a decorative shape landed on the status chip; the sticky navigation was see-through over table text; sparklines were flat lines (now scaled to their own range); the nav pulse line was a meaningless wobble (given its own proportions); on phones the pulse line shrank to nothing (given its own phone shape).
+2. Round 2: the pain table overflowed at tablet width (stacks below 900 px); the navigation highlighted a section while still at the top; the hero said "0 rising" when trends were actually unavailable; with JavaScript off the page showed only a skeleton (loading boundary removed); a font-preload tweak caused a layout shift on desktop (reverted and re-measured).

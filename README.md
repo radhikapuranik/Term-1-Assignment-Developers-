@@ -82,11 +82,20 @@ Open the Neon console, your project, **Tables** (or **SQL Editor**), table `topi
 - All sources down: no brief is invented. The run is `failed` and a short failure email is sent.
 - Every failure is logged as one JSON line with `console.error` (run id, stage, source, message) and stored on the run row.
 
+## Design and motion
+
+The interface follows one idea, "The Pulse": a hand-drawn pulse line, generated in code from the real statistics, runs across the top of the page and its spikes rise over the categories that are rising. Motion uses GSAP (ScrollTrigger only, loaded after first paint, fully static with "reduce motion"); see `docs/DESIGN.md` for the concept, type pairing (Bricolage Grotesque, IBM Plex Sans, IBM Plex Mono), tokens, motion rules and the measured results.
+
+```bash
+npm run a11y-check     # keyboard walkthrough + axe on a running site (default http://localhost:3100)
+```
+
 ## Tests
 
 ```bash
 npm run typecheck && npm run lint && npm test
 npm run live-check    # fetches the live sources and prints counts, no database needed
+node --env-file=.env.local --import tsx scripts/verify-numbers.mts   # page numbers vs the database
 ```
 
 Unit tests cover the window maths, keyword matcher, de-duplication, trend labels, percent change, unresolved rules, brief assembly and the AI output validator.
