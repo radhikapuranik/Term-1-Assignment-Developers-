@@ -313,8 +313,22 @@ html.motion [data-draw] { stroke-dasharray: 1; stroke-dashoffset: 1; animation: 
   .loadline path { stroke-dashoffset: 0; }
 }
 
-/* ===== Tablets and phones: tables become stacked rows (the 7-column table needs about 900px) ===== */
+/* ===== Stacked rows: the 7-column pain table below 900px, every other table below 720px ===== */
 @media (max-width: 900px) {
+  table.stack-wide thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.stack-wide, table.stack-wide tbody, table.stack-wide tr, table.stack-wide td { display: block; width: 100%; }
+  table.stack-wide tr { border-top: 2px solid var(--ink); padding: 10px 0 6px; }
+  table.stack-wide tr.detail { border-top: 0; padding: 0 0 6px; }
+  table.stack-wide td { border: 0; padding: 5px 0; display: flex; justify-content: space-between; gap: 12px; text-align: right; align-items: center; }
+  table.stack-wide td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-align: left; font-family: var(--mono); text-transform: uppercase; letter-spacing: .04em; flex: none; }
+  table.stack-wide td.first { display: block; text-align: left; padding-top: 6px; }
+  table.stack-wide td.first::before { content: none; }
+  table.stack-wide td.bars { display: block; text-align: left; }
+  table.stack-wide td.bars::before { display: block; margin-bottom: 4px; }
+  table.stack-wide tr.detail td { display: block; text-align: left; }
+  table.stack-wide tr.detail td::before { content: none; }
+}
+@media (max-width: 720px) {
   table.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
   table.stack tr { border-top: 2px solid var(--ink); padding: 10px 0 6px; }

@@ -80,6 +80,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
   const sourceStatus = shown?.source_status ?? null;
   const healthy = sourceStatus ? healthySources(sourceStatus) : null;
   const rising = c ? c.categories.filter((x) => x.trend_kind === "up").length : 0;
+  const trendsKnown = c ? c.categories.some((x) => x.data_status === "complete") : true; // false when every category is missing data
   const byCat = new Map<string, typeof data.spark>();
   for (const p of data.spark) byCat.set(p.category, [...(byCat.get(p.category) ?? []), p]);
   const sparkRuns = new Set(data.spark.map((p) => p.run_id)).size;
@@ -125,7 +126,13 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
             {c && (
               <span className="hero-numbers">
                 <NumberTip text={windowTip}><span className="n">{c.totals.current}</span></NumberTip> discussions read.{" "}
-                <NumberTip text="Categories whose trend is Up: more mentions than last week, beyond the flat threshold, with enough data."><span className="n">{rising}</span></NumberTip> {rising === 1 ? "pain point" : "pain points"} rising.{" "}
+                {trendsKnown ? (
+                  <>
+                    <NumberTip text="Categories whose trend is Up: more mentions than last week, beyond the flat threshold, with enough data."><span className="n">{rising}</span></NumberTip> {rising === 1 ? "pain point" : "pain points"} rising.{" "}
+                  </>
+                ) : (
+                  <>Trends unavailable, data incomplete.{" "}</>
+                )}
                 <NumberTip text="Posts where the source showed few or no replies when we looked. Based on replies and answers at fetch time. Open each link to verify."><span className="n">{c.unresolved.length}</span></NumberTip> potentially unresolved.
               </span>
             )}
@@ -249,7 +256,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
               </SecHead>
               <div className="stats strip">
                 <div className="stat"><div className="n"><NumberTip text={windowTip}><span data-count={c.totals.current} suppressHydrationWarning>{c.totals.current}</span></NumberTip> <small>/ {c.totals.previous}</small></div><div className="l">Unique posts, this week / last week</div></div>
-                <div className="stat"><div className="n"><NumberTip text="Categories whose trend label is Up."><span data-count={rising} suppressHydrationWarning>{rising}</span></NumberTip> <small>of {c.categories.length}</small></div><div className="l">Categories rising</div></div>
+                <div className="stat"><div className="n">{trendsKnown ? (<><NumberTip text="Categories whose trend label is Up."><span data-count={rising} suppressHydrationWarning>{rising}</span></NumberTip> <small>of {c.categories.length}</small></>) : (<NumberTip text="A source did not respond, so no trend is claimed for any category this run."><span>n/a</span></NumberTip>)}</div><div className="l">Categories rising</div></div>
                 <div className="stat"><div className="n"><NumberTip text="Posts where the source showed few or no replies at the time we looked. Open the link to verify."><span data-count={c.unresolved.length} suppressHydrationWarning>{c.unresolved.length}</span></NumberTip></div><div className="l">Potentially unresolved discussions</div></div>
                 <div className="stat"><div className="n"><NumberTip text="Sources where every request succeeded in this run."><span>{healthy ?? "n/a"}</span></NumberTip> <small>of 3</small></div><div className="l">Sources healthy</div></div>
               </div>

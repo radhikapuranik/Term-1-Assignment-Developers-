@@ -42,7 +42,7 @@ export function PainTable({ categories, minMentions, anchor }: { categories: Bri
         </select>
       </div>
       <div className="tablewrap">
-        <table className="stack">
+        <table className="stack-wide">
           <caption className="sr-only">Pain point categories: mentions this week versus last week, with trend</caption>
           <thead>
             <tr><th scope="col">Category</th><th scope="col" className="num">This week</th><th scope="col" className="num">Last week</th><th scope="col" className="num">Change</th><th scope="col">Trend</th><th scope="col">Data</th><th scope="col">This week vs last week</th></tr>

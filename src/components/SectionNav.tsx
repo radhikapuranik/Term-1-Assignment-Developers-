@@ -7,7 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 export interface NavItem { id: string; label: string }
 
 export function SectionNav({ items, spikes }: { items: NavItem[]; spikes: Spike[] | null }) {
-  const [current, setCurrent] = useState(items[0]?.id ?? "");
+  const [current, setCurrent] = useState("");
   const [menu, setMenu] = useState(false);
 
   useEffect(() => {
