@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { bearerOk } from "@/lib/auth";
 import { runPipeline } from "@/lib/pipeline";
 import { scheduledAnchor } from "@/lib/windows";
@@ -14,5 +15,6 @@ export async function GET(req: Request) {
   // Same anchor for the primary run, in-code retries and the catch-up run on the same Friday.
   const anchor = scheduledAnchor(new Date());
   const result = await runPipeline(anchor, "scheduled", { catchup });
+  revalidatePath("/");
   return NextResponse.json({ anchor: anchor.toISOString(), catchup, ...result });
 }

@@ -57,9 +57,9 @@ export function PairedBars({ current, previous, max, label }: { current: number;
   const bw = (n: number) => Math.max(n > 0 ? 2 : 0, n * scale);
   return (
     <svg viewBox="0 0 170 28" width="170" height="28" role="img" aria-label={label} style={{ maxWidth: "100%" }}>
-      <rect x="0" y="2" width={bw(current)} height="10" rx="1.5" fill="var(--accent)" />
+      <rect className="barrect" data-bar x="0" y="2" width={bw(current)} height="10" rx="1.5" fill="var(--accent)" />
       <text x={bw(current) + 5} y="11" fontSize="10" fontFamily="var(--mono)" fill="currentColor">{current}</text>
-      <rect x="0" y="16" width={bw(previous)} height="10" rx="1.5" fill="var(--muted)" opacity="0.55" />
+      <rect className="barrect" data-bar x="0" y="16" width={bw(previous)} height="10" rx="1.5" fill="var(--muted)" opacity="0.55" />
       <text x={bw(previous) + 5} y="25" fontSize="10" fontFamily="var(--mono)" fill="var(--muted)">{previous}</text>
       <line x1="0.5" y1="0" x2="0.5" y2="28" stroke="var(--hair)" />
     </svg>
@@ -67,18 +67,20 @@ export function PairedBars({ current, previous, max, label }: { current: number;
 }
 
 export function Sparkline({ values, incomplete, label }: { values: number[]; incomplete: boolean[]; label: string }) {
-  const W = 200, H = 40, P = 5;
-  const max = Math.max(1, ...values);
+  const W = 200, H = 48, P = 6;
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const mid = (lo + hi) / 2;
+  const span = Math.max(hi - lo, hi * 0.25, 1); // a flat series sits mid-height instead of hugging the bottom
   const x = (i: number) => P + (values.length === 1 ? 0 : (i * (W - 2 * P)) / (values.length - 1));
-  const y = (v: number) => H - P - (v / max) * (H - 2 * P);
+  const y = (v: number) => H / 2 - ((v - mid) / span) * (H - 2 * P);
   const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const last = values.length - 1;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} preserveAspectRatio="none">
-      <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="var(--hair)" />
-      <polyline points={pts} fill="none" stroke="var(--accent)" strokeWidth="1.6" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+      <line x1={P} y1={H / 2} x2={W - P} y2={H / 2} stroke="var(--hair)" strokeDasharray="2 4" />
+      <polyline points={pts} pathLength={1} data-draw="scroll" fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
       {values.map((v, i) => (
-        <circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 3.6 : 1.8} fill={incomplete[i] ? "var(--surface)" : "var(--accent)"} stroke="var(--accent)" strokeWidth={incomplete[i] ? 1.2 : 0} />
+        <circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 4 : 2} fill={incomplete[i] ? "var(--surface)" : i === last ? "var(--accent)" : "var(--ink)"} stroke={incomplete[i] ? "var(--incomplete)" : "none"} strokeWidth={incomplete[i] ? 1.5 : 0} />
       ))}
     </svg>
   );

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { safeEqual } from "@/lib/auth";
 import { recentRunSince } from "@/lib/db";
 import { runPipeline } from "@/lib/pipeline";
@@ -22,5 +23,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `A run started less than 5 minutes ago. Try again in about ${wait} seconds.` }, { status: 429, headers: { "Retry-After": String(wait) } });
   }
   const result = await runPipeline(new Date(), "manual");
+  revalidatePath("/");
   return NextResponse.json(result);
 }

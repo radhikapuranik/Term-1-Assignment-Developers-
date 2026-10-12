@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { loadDashboard } from "@/lib/dashboard-data";
+import { SimpleNav } from "@/components/SimpleNav";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 export const metadata: Metadata = { title: "How it works", description: "How Developer Community Pulse collects discussions and counts pain points." };
 
 export default async function About() {
@@ -11,11 +11,13 @@ export default async function About() {
   const min = data.settings?.min_mentions ?? 5;
   const flat = data.settings?.flat_threshold_pct ?? 10;
   return (
-    <div className="wrap">
-      <header className="topbar">
-        <div className="id"><h1>How it works</h1><p className="muted">How the numbers are counted, in plain language.</p><nav aria-label="Pages"><Link href="/">Back to the dashboard</Link></nav></div>
-      </header>
-      <div className="prose" style={{ marginTop: 24 }}>
+    <>
+      <SimpleNav />
+      <main id="main" className="wrap" style={{ paddingTop: 56, paddingBottom: 96 }}>
+        <p className="eyebrow">Methodology</p>
+        <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: "clamp(40px, 7vw, 84px)", letterSpacing: "-.04em", lineHeight: 0.95, margin: "16px 0 12px" }}>How it works</h1>
+        <p className="muted measure" style={{ marginBottom: 8 }}>How the numbers are counted, in plain language.</p>
+        <div className="prose" style={{ marginTop: 24 }}>
         <h2>What this is</h2>
         <p>Every Friday at 8:00 AM IST this app reads public developer discussions, counts how often each pain point comes up this week versus last week, and sends the brief by email. The same brief is shown on the dashboard.</p>
 
@@ -64,7 +66,8 @@ export default async function About() {
 
         <h2>Schedule and limits</h2>
         <p>The brief is scheduled for Friday 8:00 AM IST. On the free Vercel plan the job may start anywhere within that hour, and a catch-up job runs an hour later to finish anything that failed.</p>
-      </div>
-    </div>
+        </div>
+      </main>
+    </>
   );
 }

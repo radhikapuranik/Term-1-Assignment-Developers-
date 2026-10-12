@@ -41,8 +41,10 @@ create table if not exists runs (
   status text not null default 'running' check (status in ('running','sent','partial','failed')),
   attempts int not null default 0,
   source_status jsonb, error text,
-  started_at timestamptz default now(), finished_at timestamptz
+  started_at timestamptz default now(), finished_at timestamptz,
+  stage text                         -- live progress for the Run now panel: fetch | count | analyse | write | email | done | failed
 );
+alter table runs add column if not exists stage text;
 create unique index if not exists runs_one_scheduled_per_week on runs(week_key) where run_type = 'scheduled';
 
 create table if not exists weekly_stats (

@@ -136,6 +136,7 @@ export interface RunRow {
   error: string | null;
   started_at: string;
   finished_at: string | null;
+  stage: string | null;
 }
 
 export async function getScheduledRun(weekKey: string): Promise<RunRow | null> {
@@ -167,7 +168,7 @@ export async function setSourceStatus(id: string, ss: unknown): Promise<void> {
 
 export async function finishRun(id: string, status: string, error: string | null, ss?: unknown): Promise<void> {
   await q(
-    "update runs set status = $2, finished_at = now(), error = $3, source_status = coalesce($4::jsonb, source_status) where id = $1",
+    "update runs set status = $2, stage = case when $2 = 'failed' then 'failed' else 'done' end, finished_at = now(), error = $3, source_status = coalesce($4::jsonb, source_status) where id = $1",
     [id, status, error, ss === undefined ? null : json(ss)],
   );
 }
@@ -201,4 +202,20 @@ export async function saveBriefAndStats(runId: string, content: unknown, html: s
 export async function setEmailStatus(runId: string, ok: boolean, error?: string): Promise<void> {
   if (ok) await q("update briefs set email_status = 'sent', email_sent_at = now(), email_error = null where run_id = $1", [runId]);
   else await q("update briefs set email_status = 'failed', email_error = $2 where run_id = $1", [runId, error ?? "unknown error"]);
+}
+
+/** Best effort: the progress panel is nice to have, so a failed stage update must never fail a run. */
+export async function setStage(id: string, stage: string): Promise<void> {
+  try {
+    await q("update runs set stage = $2 where id = $1", [id, stage]);
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function latestRunStatus(): Promise<{ id: string; status: string; stage: string | null; started_at: string; finished_at: string | null } | null> {
+  const r = await q<{ id: string; status: string; stage: string | null; started_at: string; finished_at: string | null }>(
+    "select id, status, stage, started_at, finished_at from runs order by started_at desc limit 1",
+  );
+  return r[0] ?? null;
 }

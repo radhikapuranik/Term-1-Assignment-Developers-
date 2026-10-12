@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { BriefView } from "@/components/BriefView";
 import { loadDashboard } from "@/lib/dashboard-data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 export const metadata: Metadata = { title: "Past brief" };
 
 export default async function RunPage({ params }: { params: Promise<{ id: string }> }) {

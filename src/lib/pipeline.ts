@@ -1,6 +1,6 @@
 import {
   claimRun, finishRun, getBrief, getScheduledRun, insertRun, loadConfig, loadWindowData, saveBriefAndStats,
-  saveClassifications, setEmailStatus, setSourceStatus, upsertFetchedPosts, upsertMatches, type RunRow,
+  saveClassifications, setEmailStatus, setSourceStatus, setStage, upsertFetchedPosts, upsertMatches, type RunRow,
 } from "./db";
 import { collectPosts } from "./collect";
 import { computeStats, verifyMatches } from "./stats";
@@ -108,6 +108,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
     const g = await stage("guard", () => guard(anchor, runType));
     if ("skip" in g) return g.skip;
     run = g.run;
+    await setStage(run.id, "fetch");
     console.log(JSON.stringify({ level: "info", run_id: run.id, stage: "start", run_type: runType, attempt: run.attempts, catchup: !!opts.catchup }));
 
     // Resume: a brief already exists, so only the email may still be missing.
@@ -162,6 +163,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
       await upsertMatches(matches);
     });
 
+    await setStage(run.id, "count");
     // Statistics come from the database, restricted to active pairs and to each window by created_at.
     const { posts, matches: dbMatches } = await stage("load", () => loadWindowData(w.fetchFrom, anchor));
     const stats = computeStats({ matches: dbMatches, activeTopics: topics, windows: w, settings, outcomes });
@@ -169,6 +171,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
     const activeKeys = new Set(dbMatches.filter((m) => activeSet.has(`${m.category}\u0000${m.keyword}`)).map((m) => postKey(m.source, m.post_id)));
     const inScope = posts.filter((p) => activeKeys.has(postKey(p.source, p.post_id)));
 
+    await setStage(run.id, "analyse");
     // Classify with Gemini (cached, capped, time-budgeted).
     let classifyFailed = 0;
     let classifyOk = 0;
@@ -204,6 +207,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
       }
     });
 
+    await setStage(run.id, "write");
     // Build the brief: code-calculated base first, then AI commentary if Gemini is available.
     const unresolved = findUnresolved(inScope.filter((p) => new Date(p.created_at).getTime() >= w.current.from.getTime()));
     const classified = inScope.filter((p) => p.classified_at).length;
@@ -232,6 +236,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
     const html = renderEmailHtml(content, appUrl(), `/runs/${run.id}`);
     await stage("save-brief", () => saveBriefAndStats(run!.id, content, html, stats.rows as unknown as Array<Record<string, unknown>>));
 
+    await setStage(run.id, "email");
     const emailOk = await stage("email", () => deliver(run!, content, html, settings, errors));
     const status = overallStatus(content, outcomes, emailOk);
     sourceStatus.stages_ms = stagesMs;

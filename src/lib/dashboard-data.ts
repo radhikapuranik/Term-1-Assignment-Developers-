@@ -14,6 +14,7 @@ export interface RunSummary {
   started_at: string;
   finished_at: string | null;
   source_status: SourceStatus | null;
+  stage?: string | null;
   has_brief?: boolean;
 }
 
@@ -41,7 +42,7 @@ export interface DashboardData {
 }
 
 const appUrl = () => (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-const RUN_COLS = "id,run_type,status,anchor,attempts,error,started_at,finished_at,source_status";
+const RUN_COLS = "id,run_type,status,anchor,attempts,error,started_at,finished_at,source_status,stage";
 
 export async function loadDashboard(runId?: string): Promise<DashboardData> {
   const empty: DashboardData = {
@@ -49,8 +50,15 @@ export async function loadDashboard(runId?: string): Promise<DashboardData> {
   };
   if (!dbConfigured()) return { ...empty, configured: false };
   try {
-    const hasBrief = new Set((await q<{ run_id: string }>("select run_id from briefs")).map((b) => b.run_id));
-    const runs = (await q<RunSummary>(`select ${RUN_COLS} from runs order by started_at desc limit 40`)).map((r) => ({ ...r, has_brief: hasBrief.has(r.id) }));
+    const [briefIds, runRows, topics, settingRows] = await Promise.all([
+      q<{ run_id: string }>("select run_id from briefs"),
+      q<RunSummary>(`select ${RUN_COLS} from runs order by started_at desc limit 40`),
+      q<Topic>("select * from topics where active order by category, id"),
+      q<{ key: string; value: unknown }>("select key, value from settings"),
+    ]);
+    const hasBrief = new Set(briefIds.map((b) => b.run_id));
+    const runs = runRows.map((r) => ({ ...r, has_brief: hasBrief.has(r.id) }));
+    const sm = Object.fromEntries(settingRows.map((r) => [r.key, r.value]));
 
     let shown: RunSummary | null = null;
     if (runId) {
@@ -61,24 +69,21 @@ export async function loadDashboard(runId?: string): Promise<DashboardData> {
       shown = runs.find((r) => hasBrief.has(r.id)) ?? null;
     }
 
-    let brief: DashboardData["brief"] = null;
-    if (shown) {
-      brief = (await q<NonNullable<DashboardData["brief"]>>("select content, email_status, email_sent_at, email_error from briefs where run_id = $1", [shown.id]))[0] ?? null;
-    }
-
-    const topics = await q<Topic>("select * from topics where active order by category, id");
-    const sm = Object.fromEntries((await q<{ key: string; value: unknown }>("select key, value from settings")).map((r) => [r.key, r.value]));
+    const briefPromise = shown
+      ? q<NonNullable<DashboardData["brief"]>>("select content, email_status, email_sent_at, email_error from briefs where run_id = $1", [shown.id])
+      : Promise.resolve([]);
 
     const sparkRunIds = runs.filter((r) => hasBrief.has(r.id)).slice(0, 12).map((r) => r.id);
     const anchors = new Map(runs.map((r) => [r.id, r.anchor]));
-    let spark: SparkPoint[] = [];
-    if (sparkRunIds.length) {
-      const rows = await q<{ run_id: string; category: string; current_count: number; data_status: "complete" | "incomplete" }>(
-        "select run_id, category, current_count, data_status from weekly_stats where level = 'category' and run_id = any($1::uuid[])",
-        [sparkRunIds],
-      );
-      spark = rows.map((r) => ({ ...r, anchor: anchors.get(r.run_id) ?? "" }));
-    }
+    const sparkPromise = sparkRunIds.length
+      ? q<{ run_id: string; category: string; current_count: number; data_status: "complete" | "incomplete" }>(
+          "select run_id, category, current_count, data_status from weekly_stats where level = 'category' and run_id = any($1::uuid[])",
+          [sparkRunIds],
+        )
+      : Promise.resolve([]);
+    const [briefRows, sparkRows] = await Promise.all([briefPromise, sparkPromise]);
+    const brief: DashboardData["brief"] = briefRows[0] ?? null;
+    const spark: SparkPoint[] = sparkRows.map((r) => ({ ...r, anchor: anchors.get(r.run_id) ?? "" }));
 
     return {
       ...empty,
