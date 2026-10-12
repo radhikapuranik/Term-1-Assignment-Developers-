@@ -59,9 +59,11 @@ npm run dev
 
 Secrets are never committed or prefixed `NEXT_PUBLIC_`.
 
-## Editing topics (no code change)
+## Managing topics (no code change, no Neon needed)
 
-Open the Neon console, your project, **Tables** (or **SQL Editor**), table `topics`. Add a row (category, keyword), set `active` to false to switch one off. Settings (`min_mentions`, `flat_threshold_pct`, `devto_tags`, `classify_cap`, `recipient_email`) are rows in `settings`. The next run picks changes up. New keywords get a `created_at` date, so their category is tagged "recently added", and their previous-week baseline is real because both windows are always fetched.
+Open `/topics` on the site and enter the Run now passcode. You can add a category, rename a category, add a keyword, edit a keyword's text, move a keyword to another category, and switch categories and keywords on or off. Nothing is deleted: switching off hides a topic from future runs and keeps its past numbers. Topics are stored in Neon Postgres.
+
+Categories and keywords have permanent ids; posts, weekly stats and history point to the ids, so a rename only changes a label. When you add a keyword (or a category with a first keyword), or change a keyword's text, the app immediately fetches the last 14 days for just that keyword from the three sources, matches it in code, and saves the posts and the weekly counts for this week and last week. No Gemini call is made. Those numbers are labelled "backfilled" on the dashboard until the next run includes them. If a source fails, the page says so and shows "no baseline" instead of guessing. Switching a topic back on invents no numbers: it is counted again from the next run. New settings (`min_mentions`, `flat_threshold_pct`, `devto_tags`, `classify_cap`, `recipient_email`) are still rows in the `settings` table in Neon.
 
 ## Endpoints
 
@@ -69,6 +71,8 @@ Open the Neon console, your project, **Tables** (or **SQL Editor**), table `topi
 |---|---|
 | `GET /api/cron/weekly` | Scheduled run. Requires `Authorization: Bearer $CRON_SECRET` (constant-time compare, 401 otherwise) |
 | `GET /api/cron/weekly?catchup=1` | Exits at once if this week is already `sent`; otherwise resumes the run, or retries only the email |
+| `GET/POST /api/topics` | Topics page API (header `x-run-passcode`): add, rename, move, switch on/off, backfill |
+| `GET /api/run-status` | Stage of the newest run (read-only) |
 | `POST /api/run-now` | Manual run. Header `x-run-passcode`. 401 for a wrong passcode, 429 if any run started in the last 5 minutes |
 
 ### Scheduling on the Vercel Hobby plan

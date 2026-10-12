@@ -13,19 +13,14 @@ The dashboard is built around one idea, "The Pulse": a hand-drawn pulse line gen
 
 In the file `.env.local` in the project folder, on the line `RUN_NOW_PASSCODE=`. (Mac Finder hides files that start with a dot: press Cmd+Shift+. to see it.) The same value is stored as an environment variable on Vercel. The passcode is never in the code or in the browser.
 
-## How Sumit adds a keyword (no code change, no redeploy)
+## How Sumit adds a keyword (no code change, no Neon needed)
 
-1. Go to the Neon console (console.neon.tech) and open the project.
-2. Left menu: **Tables** -> `topics`.
-3. Click **Add record** and fill in `category` (for example `False positives and noisy tooling`) and `keyword` (for example `noisy linter`). Leave `active` as true. Save.
-4. To switch a keyword off, edit its row and set `active` to false.
+1. Open the live site and click **Topics** in the top bar (or go to `/topics`).
+2. Enter the Run now passcode and press **Unlock**.
+3. Under the category you want, type the keyword and press **Add keyword**. A short message confirms it, with this week and last week numbers: the last 14 days are backfilled straight away from the three sources (no AI used).
+4. To rename, move or switch things on or off, use the buttons on the same page. Nothing is ever deleted; switching off keeps past numbers.
 
-The same can be done in **SQL Editor**:
-```sql
-insert into topics (category, keyword) values ('False positives and noisy tooling', 'noisy linter');
-update topics set active = false where keyword = 'slow CI';
-```
-Settings (minimum mentions, flat threshold, Dev.to tags, recipient email) are rows in the `settings` table. The next run picks all changes up. A new keyword gets a `created_at` date, so its category is tagged "recently added", and last week's baseline is real because both weeks are always fetched.
+Topics are stored in Neon Postgres. Settings such as the minimum mentions, Dev.to tags and recipient email are still rows in the `settings` table in the Neon console (Tables).
 
 ## 60-second demo script
 
@@ -35,7 +30,7 @@ Settings (minimum mentions, flat threshold, Dev.to tags, recipient email) are ro
 4. **(0:35)** Keyword watchlist. "This answers the PM's question: did 'false positive' appear 4 times or 14? Exact counts per keyword."
 5. **(0:42)** Potentially unresolved. "Each item has the reason and a link to verify. We never say 'unsolved', only 'potentially unresolved'."
 6. **(0:50)** Click **Run now**, enter the passcode, press Start run. "It is protected by a passcode and a 5-minute cooldown. A full run with a brand-new week takes under a minute." (When it finishes, the page refreshes and an email arrives.)
-7. **(0:58)** Open Neon -> Tables -> `topics`. "Topics live here. Adding a keyword needs no code change."
+7. **(0:58)** Open the Topics page. "Sumit manages topics here, behind the passcode. A new keyword is backfilled for 14 days and shows a trend straight away."
 
 ## Known limits
 
