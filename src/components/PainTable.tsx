@@ -14,7 +14,7 @@ export function PainTable({ categories, minMentions, anchor }: { categories: Bri
   const A = new Date(anchor).getTime();
   const WEEK = 7 * 24 * 3600 * 1000;
   const win = (weeks: 0 | 1) => `${formatIstShort(new Date(A - (weeks + 1) * WEEK))} to ${formatIstShort(new Date(A - weeks * WEEK))} IST`;
-  const how = (c: BriefCategory, w: 0 | 1) => `Unique posts matching ${c.keywords.map((k) => k.keyword).join(", ")}, created ${win(w)} (${w === 0 ? "this week" : "last week"}), from Hacker News, Dev.to and Stack Overflow. Counted once per category, deduplicated by source and ID.`;
+  const how = (c: BriefCategory, w: 0 | 1) => c.backfilled ? "Backfilled when a keyword was added: the last 14 days were fetched at that moment and split into this week and last week. Counted once per category, deduplicated by source and ID." : `Unique posts matching ${c.keywords.map((k) => k.keyword).join(", ")}, created ${win(w)} (${w === 0 ? "this week" : "last week"}), from Hacker News, Dev.to and Stack Overflow. Counted once per category, deduplicated by source and ID.`;
   const [sort, setSort] = useState<SortKey>("current");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const max = Math.max(1, ...categories.flatMap((c) => [c.current_count, c.previous_count]));
@@ -61,6 +61,7 @@ export function PainTable({ categories, minMentions, anchor }: { categories: Bri
                       </button>
                       {c.recently_added && <> <span className="tag">recently added</span></>}
                       {isThin(c) && <> <span className="tag thin">thin evidence</span></>}
+                      {c.backfilled && <> <span className="tag">{c.data_status === "incomplete" ? "backfilled, no baseline" : "backfilled"}</span></>}
                     </td>
                     <td className="num" data-label="This week"><NumberTip text={how(c, 0)}><span data-count={c.current_count} suppressHydrationWarning>{c.current_count}</span></NumberTip></td>
                     <td className="num" data-label="Last week"><NumberTip text={how(c, 1)}>{c.previous_count}</NumberTip></td>
@@ -85,7 +86,7 @@ export function PainTable({ categories, minMentions, anchor }: { categories: Bri
                           </div>
                           <div>
                             <p className="h4">Most discussed this week</p>
-                            {c.evidence.length === 0 ? <p className="small muted">No posts this week.</p> : (
+                            {c.evidence.length === 0 ? <p className="small muted">{c.backfilled ? "Evidence posts appear in the next brief." : "No posts this week."}</p> : (
                               <ul className="evlist">
                                 {c.evidence.map((e) => (
                                   <li key={`${e.source}:${e.post_id}`}><SourceBadge source={e.source} /><a href={e.url} target="_blank" rel="noopener noreferrer">{e.title}</a></li>

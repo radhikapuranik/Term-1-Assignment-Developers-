@@ -3,7 +3,7 @@ import { pickHighlights, pulseSpikes, ratioNote, shortName, slug } from "@/lib/h
 import type { BriefCategory, BriefContent } from "@/lib/brief";
 
 const cat = (over: Partial<BriefCategory>): BriefCategory => ({
-  category: "X", current_count: 10, previous_count: 5, pct_change: 100, trend_label: "Up", trend_kind: "up", data_status: "complete",
+  category_id: 1, category: "X", current_count: 10, previous_count: 5, pct_change: 100, trend_label: "Up", trend_kind: "up", data_status: "complete",
   recently_added: false, headline: null, keywords: [], evidence: [], pain_points: [], opportunities: [], ...over,
 });
 const brief = (categories: BriefCategory[], unresolved: BriefContent["unresolved"] = []): BriefContent => ({

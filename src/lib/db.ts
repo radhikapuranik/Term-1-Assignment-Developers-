@@ -20,7 +20,12 @@ function client(): Sql {
 /** Dates become ISO strings, so the rest of the code deals only in plain JSON-like values. */
 function normalize<T>(row: Row): T {
   const out: Row = {};
-  for (const [k, v] of Object.entries(row)) out[k] = v instanceof Date ? v.toISOString() : v;
+  for (const [k, v] of Object.entries(row)) {
+    if (v instanceof Date) out[k] = v.toISOString();
+    // Neon returns bigint ids as strings: make permanent ids real numbers (post_id and uuids are left alone)
+    else if ((k === "id" || k === "category_id" || k === "topic_id") && typeof v === "string" && /^\d+$/.test(v)) out[k] = Number(v);
+    else out[k] = v;
+  }
   return out as T;
 }
 
@@ -57,7 +62,11 @@ export const dbConfigured = () => !!process.env.DATABASE_URL;
 const json = (v: unknown) => JSON.stringify(v);
 
 export async function loadConfig(): Promise<{ topics: Topic[]; settings: Settings }> {
-  const topics = await q<Topic>("select * from topics where active order by category, id");
+  const topics = await q<Topic>(
+    `select t.id, t.category_id, c.name as category, t.keyword, t.active, t.created_at
+       from topics t join categories c on c.id = t.category_id
+      where t.active and c.active order by c.name, t.id`,
+  );
   const rows = await q<{ key: string; value: unknown }>("select key, value from settings");
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   const settings: Settings = {
@@ -73,7 +82,7 @@ export async function loadConfig(): Promise<{ topics: Topic[]; settings: Setting
 export async function loadWindowData(from: Date, to: Date): Promise<{ posts: PostRow[]; matches: MatchRow[] }> {
   const posts = await q<PostRow>("select * from posts where created_at >= $1 and created_at < $2 order by source, post_id", [from.toISOString(), to.toISOString()]);
   const matches = await q<MatchRow>(
-    `select m.source, m.post_id, m.category, m.keyword, p.created_at
+    `select m.source, m.post_id, m.topic_id, p.created_at
        from post_matches m join posts p on p.source = m.source and p.post_id = m.post_id
       where p.created_at >= $1 and p.created_at < $2`,
     [from.toISOString(), to.toISOString()],
@@ -99,12 +108,12 @@ export async function upsertFetchedPosts(rows: Array<Record<string, unknown>>): 
   }
 }
 
-export async function upsertMatches(rows: Array<{ source: string; post_id: string; category: string; keyword: string }>): Promise<void> {
+export async function upsertMatches(rows: Array<{ source: string; post_id: string; topic_id: number }>): Promise<void> {
   for (let i = 0; i < rows.length; i += 800) {
     await q(
-      `insert into post_matches (source, post_id, category, keyword)
-       select x.source, x.post_id, x.category, x.keyword
-         from jsonb_to_recordset($1::jsonb) as x(source text, post_id text, category text, keyword text)
+      `insert into post_matches (source, post_id, topic_id)
+       select x.source, x.post_id, x.topic_id
+         from jsonb_to_recordset($1::jsonb) as x(source text, post_id text, topic_id bigint)
        on conflict do nothing`,
       [json(rows.slice(i, i + 800))],
     );
@@ -127,7 +136,7 @@ export async function saveClassifications(posts: PostRow[]): Promise<void> {
 
 export interface RunRow {
   id: string;
-  run_type: "scheduled" | "manual";
+  run_type: "scheduled" | "manual" | "backfill";
   week_key: string | null;
   anchor: string;
   status: "running" | "sent" | "partial" | "failed";
@@ -174,7 +183,7 @@ export async function finishRun(id: string, status: string, error: string | null
 }
 
 export async function recentRunSince(since: Date): Promise<string | null> {
-  const r = await q<{ started_at: string }>("select started_at from runs where started_at >= $1 order by started_at desc limit 1", [since.toISOString()]);
+  const r = await q<{ started_at: string }>("select started_at from runs where started_at >= $1 and run_type <> 'backfill' order by started_at desc limit 1", [since.toISOString()]);
   return r[0]?.started_at ?? null;
 }
 
@@ -184,19 +193,33 @@ export async function getBrief(runId: string): Promise<BriefRow | null> {
   return (await q<BriefRow>("select * from briefs where run_id = $1", [runId]))[0] ?? null;
 }
 
-export async function saveBriefAndStats(runId: string, content: unknown, html: string, stats: Array<Record<string, unknown>>): Promise<void> {
-  await q("delete from weekly_stats where run_id = $1", [runId]);
+export async function insertStats(runId: string, stats: Array<Record<string, unknown>>): Promise<void> {
   await q(
-    `insert into weekly_stats (run_id, level, category, keyword, current_count, previous_count, pct_change, trend_label, data_status)
-     select $1::uuid, x.level, x.category, x.keyword, x.current_count, x.previous_count, x.pct_change, x.trend_label, x.data_status
-       from jsonb_to_recordset($2::jsonb) as x(level text, category text, keyword text, current_count int, previous_count int, pct_change numeric, trend_label text, data_status text)`,
+    `insert into weekly_stats (run_id, level, category_id, topic_id, category, keyword, current_count, previous_count, pct_change, trend_label, data_status)
+     select $1::uuid, x.level, x.category_id, x.topic_id, x.category, x.keyword, x.current_count, x.previous_count, x.pct_change, x.trend_label, x.data_status
+       from jsonb_to_recordset($2::jsonb) as x(level text, category_id bigint, topic_id bigint, category text, keyword text, current_count int, previous_count int, pct_change numeric, trend_label text, data_status text)`,
     [runId, json(stats)],
   );
+}
+
+export async function saveBriefAndStats(runId: string, content: unknown, html: string, stats: Array<Record<string, unknown>>): Promise<void> {
+  await q("delete from weekly_stats where run_id = $1", [runId]);
+  await insertStats(runId, stats);
   await q(
     `insert into briefs (run_id, content, html, email_status) values ($1, $2::jsonb, $3, 'pending')
      on conflict (run_id) do update set content = excluded.content, html = excluded.html, email_status = 'pending', email_sent_at = null, email_error = null`,
     [runId, json(content), html],
   );
+}
+
+/** A backfill is recorded as a run of its own type, so its numbers use the same weekly_stats rows as a normal run. */
+export async function insertBackfillRun(anchor: Date, status: "sent" | "partial", sourceStatus: unknown): Promise<string> {
+  const r = await q<{ id: string }>(
+    `insert into runs (run_type, anchor, status, attempts, source_status, stage, finished_at)
+     values ('backfill', $1, $2, 1, $3::jsonb, 'done', now()) returning id`,
+    [anchor.toISOString(), status, json(sourceStatus)],
+  );
+  return r[0].id;
 }
 
 export async function setEmailStatus(runId: string, ok: boolean, error?: string): Promise<void> {
@@ -215,7 +238,7 @@ export async function setStage(id: string, stage: string): Promise<void> {
 
 export async function latestRunStatus(): Promise<{ id: string; status: string; stage: string | null; started_at: string; finished_at: string | null } | null> {
   const r = await q<{ id: string; status: string; stage: string | null; started_at: string; finished_at: string | null }>(
-    "select id, status, stage, started_at, finished_at from runs order by started_at desc limit 1",
+    "select id, status, stage, started_at, finished_at from runs where run_type <> 'backfill' order by started_at desc limit 1",
   );
   return r[0] ?? null;
 }

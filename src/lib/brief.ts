@@ -15,7 +15,9 @@ export interface EvidenceLink {
 }
 
 export interface BriefKeyword {
+  topic_id: number;
   keyword: string;
+  backfilled?: boolean;
   current_count: number;
   previous_count: number;
   pct_change: number | null;
@@ -24,7 +26,9 @@ export interface BriefKeyword {
 }
 
 export interface BriefCategory {
+  category_id: number;
   category: string;
+  backfilled?: boolean;
   current_count: number;
   previous_count: number;
   pct_change: number | null;
@@ -58,9 +62,9 @@ function link(p: PostRow): EvidenceLink {
   return { source: p.source, post_id: p.post_id, title: p.title, url: p.url, created_at: p.created_at };
 }
 
-/** The best evidence posts for a category this week: relevant ones, most-engaged first. */
-export function evidenceFor(category: string, posts: PostRow[], matches: MatchRow[], currentFrom: Date, currentTo: Date, max: number): PostRow[] {
-  const ids = new Set(matches.filter((m) => m.category === category).map((m) => postKey(m.source, m.post_id)));
+/** The best evidence posts for a category this week: relevant ones, most-engaged first. `topicIds` are the category's keyword ids. */
+export function evidenceFor(topicIds: Set<number>, posts: PostRow[], matches: MatchRow[], currentFrom: Date, currentTo: Date, max: number): PostRow[] {
+  const ids = new Set(matches.filter((m) => topicIds.has(m.topic_id)).map((m) => postKey(m.source, m.post_id)));
   return posts
     .filter((p) => ids.has(postKey(p.source, p.post_id)) && p.relevant !== false)
     .filter((p) => {
@@ -101,10 +105,13 @@ export function assembleBase(args: {
   unclassified: number;
 }): BriefContent {
   const fourteen = 14 * 24 * 3600 * 1000;
-  const cats = [...new Set(args.topics.map((t) => t.category))];
-  const categories: BriefCategory[] = cats.map((c) => {
-    const row = args.stats.find((s) => s.level === "category" && s.category === c)!;
+  const cats = [...new Set(args.topics.map((t) => t.category_id))];
+  const categories: BriefCategory[] = cats.map((cid) => {
+    const row = args.stats.find((s) => s.level === "category" && s.category_id === cid)!;
+    const own = args.topics.filter((t) => t.category_id === cid);
+    const c = own[0].category;
     return {
+      category_id: cid,
       category: c,
       current_count: row.current_count,
       previous_count: row.previous_count,
@@ -112,11 +119,12 @@ export function assembleBase(args: {
       trend_label: row.trend_label,
       trend_kind: labelToKind(row.trend_label),
       data_status: row.data_status,
-      recently_added: args.topics.some((t) => t.category === c && args.now.getTime() - new Date(t.created_at).getTime() < fourteen),
+      recently_added: own.some((t) => args.now.getTime() - new Date(t.created_at).getTime() < fourteen),
       headline: null,
       keywords: args.stats
-        .filter((s) => s.level === "keyword" && s.category === c)
+        .filter((s) => s.level === "keyword" && s.category_id === cid)
         .map((s) => ({
+          topic_id: s.topic_id,
           keyword: s.keyword,
           current_count: s.current_count,
           previous_count: s.previous_count,
@@ -124,7 +132,7 @@ export function assembleBase(args: {
           trend_label: s.trend_label,
           data_status: s.data_status,
         })),
-      evidence: evidenceFor(c, args.posts, args.matches, args.currentFrom, args.anchor, 5).map(link),
+      evidence: evidenceFor(new Set(own.map((t) => t.id)), args.posts, args.matches, args.currentFrom, args.anchor, 5).map(link),
       pain_points: [],
       opportunities: [],
     };

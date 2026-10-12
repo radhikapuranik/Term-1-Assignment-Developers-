@@ -11,8 +11,8 @@ process.env.GEMINI_MODEL = "gemini-test-flash";
 const anchor = new Date("2026-10-09T02:30:00Z");
 const w = windowsFor(anchor);
 const topics: Topic[] = [
-  { id: 1, category: "CI", keyword: "flaky tests", active: true, created_at: "2026-10-01T00:00:00Z" },
-  { id: 2, category: "Review", keyword: "code review", active: true, created_at: "2025-01-01T00:00:00Z" },
+  { id: 1, category_id: 10, category: "CI", keyword: "flaky tests", active: true, created_at: "2026-10-01T00:00:00Z" },
+  { id: 2, category_id: 20, category: "Review", keyword: "code review", active: true, created_at: "2025-01-01T00:00:00Z" },
 ];
 const post = (id: string, over: Partial<PostRow> = {}): PostRow => ({
   source: "hn", post_id: id, title: `Title ${id}`, snippet: null, url: `https://news.ycombinator.com/item?id=${id}`, created_at: "2026-10-05T00:00:00Z",
@@ -21,8 +21,8 @@ const post = (id: string, over: Partial<PostRow> = {}): PostRow => ({
 });
 const posts = [post("1"), post("2")];
 const matches = [
-  { source: "hn", post_id: "1", category: "CI", keyword: "flaky tests", created_at: posts[0].created_at },
-  { source: "hn", post_id: "2", category: "Review", keyword: "code review", created_at: posts[1].created_at },
+  { source: "hn", post_id: "1", topic_id: 1, created_at: posts[0].created_at },
+  { source: "hn", post_id: "2", topic_id: 2, created_at: posts[1].created_at },
 ];
 const stats = computeStats({ matches, activeTopics: topics, windows: w, settings: { min_mentions: 5, flat_threshold_pct: 10 }, outcomes: [] });
 const base = () => assembleBase({ anchor, now: new Date("2026-10-11T00:00:00Z"), topics, stats: stats.rows, totals: stats.totals, posts, matches, unresolved: [], outcomes: [], currentFrom: w.current.from, classified: 2, unclassified: 0 });

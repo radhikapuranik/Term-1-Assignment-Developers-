@@ -31,7 +31,7 @@ export function Watchlist({ categories }: { categories: BriefCategory[] }) {
         <tbody>
           {rows.map((r) => (
             <tr key={`${r.category}|${r.keyword}`}>
-              <td className="first mono">{r.keyword}</td>
+              <td className="first mono">{r.keyword}{r.backfilled && <> <span className="tag">{r.data_status === "incomplete" ? "backfilled, no baseline" : "backfilled"}</span></>}</td>
               <td data-label="Category" className="small">{r.category}</td>
               <td className="num" data-label="This week">{r.current_count}</td>
               <td className="num" data-label="Last week">{r.previous_count}</td>

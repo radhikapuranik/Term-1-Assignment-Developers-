@@ -61,7 +61,7 @@ export default async function About() {
         <p>We never flag Show HN or blog and announcement posts, and a post needs a question or complaint signal (a Stack Overflow post is a question by nature). We flag a discussion when the source shows few replies at the time we looked: a Stack Overflow question with no answers or no accepted or upvoted answer, a Hacker News question or complaint with at most one comment, or a Dev.to help or discussion post with no comments. We do not read the replies, so we never claim a problem is unsolved. Answers may arrive later, so each item shows the fetch date and a link to verify.</p>
 
         <h2>Monitored topics</h2>
-        <p>Config and history live in Neon Postgres, the Supabase/Neon option allowed by the course stack. These live in a Neon Postgres table. Add, edit or switch them off in Neon (Tables or SQL Editor), with no code change.</p>
+        <p>Config and history live in Neon Postgres, the Supabase/Neon option allowed by the course stack. Topics are managed on the Topics page (/topics, behind the Run now passcode) and stored in Neon Postgres, with no code change. New keywords are backfilled for 14 days, so their trend shows right away (labelled &ldquo;backfilled&rdquo;).</p>
         {cats.length === 0 ? <p className="muted">No active topics.</p> : (
           <ul>{cats.map((c) => <li key={c}><strong>{c}</strong>: {data.topics.filter((t) => t.category === c).map((t) => t.keyword).join(", ")}</li>)}</ul>
         )}

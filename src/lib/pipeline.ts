@@ -167,8 +167,8 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
     // Statistics come from the database, restricted to active pairs and to each window by created_at.
     const { posts, matches: dbMatches } = await stage("load", () => loadWindowData(w.fetchFrom, anchor));
     const stats = computeStats({ matches: dbMatches, activeTopics: topics, windows: w, settings, outcomes });
-    const activeSet = new Set(topics.map((t) => `${t.category}\u0000${t.keyword}`));
-    const activeKeys = new Set(dbMatches.filter((m) => activeSet.has(`${m.category}\u0000${m.keyword}`)).map((m) => postKey(m.source, m.post_id)));
+    const activeIds = new Set(topics.map((t) => t.id));
+    const activeKeys = new Set(dbMatches.filter((m) => activeIds.has(m.topic_id)).map((m) => postKey(m.source, m.post_id)));
     const inScope = posts.filter((p) => activeKeys.has(postKey(p.source, p.post_id)));
 
     await setStage(run.id, "analyse");
@@ -221,7 +221,7 @@ export async function runPipeline(anchor: Date, runType: RunType, opts: { catchu
         return;
       }
       try {
-        const evidence = new Map(content.categories.map((c) => [c.category, evidenceFor(c.category, inScope, dbMatches, w.current.from, anchor, 8)]));
+        const evidence = new Map(content.categories.map((c) => [c.category, evidenceFor(new Set(topics.filter((t) => t.category_id === c.category_id).map((t) => t.id)), inScope, dbMatches, w.current.from, anchor, 8)]));
         const checked = await generateCommentary(content, evidence, unresolved, started + RUN_DEADLINE_MS);
         content = applyCommentary(content, checked, inScope);
         if (checked.violations.length) logFailure(run!.id, "brief", "gemini", `dropped AI text after retries: ${checked.violations.join("; ").slice(0, 500)}`, errors);

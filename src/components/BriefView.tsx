@@ -82,8 +82,8 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
   const healthy = sourceStatus ? healthySources(sourceStatus) : null;
   const rising = c ? c.categories.filter((x) => x.trend_kind === "up").length : 0;
   const trendsKnown = c ? c.categories.some((x) => x.data_status === "complete") : true; // false when every category is missing data
-  const byCat = new Map<string, typeof data.spark>();
-  for (const p of data.spark) byCat.set(p.category, [...(byCat.get(p.category) ?? []), p]);
+  const byCat = new Map<number, typeof data.spark>();
+  for (const p of data.spark) byCat.set(p.category_id, [...(byCat.get(p.category_id) ?? []), p]);
   const cats = [...new Set(data.topics.map((t) => t.category))];
   const ok = data.configured && !data.loadError && !data.notFound;
   const spikes = c ? pulseSpikes(c.categories) : null;
@@ -282,7 +282,7 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
               <SecHead idx="04 / TRENDS" title="Trend history" hid="h-trend" desc="Earlier Fridays, then last week and this week, all from the same stored numbers as the table above. Hollow dots mean incomplete data." />
               <div className="sparks">
                 {c.categories.map((cat) => {
-                  const older = (byCat.get(cat.category) ?? []).sort((a, b) => a.anchor.localeCompare(b.anchor)).map((p) => ({ label: formatIstShort(p.anchor).slice(0, -6), current_count: p.current_count, data_status: p.data_status }));
+                  const older = (byCat.get(cat.category_id) ?? []).sort((a, b) => a.anchor.localeCompare(b.anchor)).map((p) => ({ label: formatIstShort(p.anchor).slice(0, -6), current_count: p.current_count, data_status: p.data_status }));
                   const pts = buildHistory(cat, older);
                   return (
                     <div className="spark" key={cat.category}>
@@ -372,9 +372,9 @@ export function BriefView({ data, showRunNow = true }: { data: DashboardData; sh
             </section>
 
             <section id="topics" aria-labelledby="h-topics">
-              <SecHead idx={c ? "09 / TOPICS" : "02 / TOPICS"} title="Monitored topics" hid="h-topics" desc={<>Edit these in Neon (Tables or SQL Editor), no code change needed. <Link href="/about">How the numbers are counted</Link>.</>} />
+              <SecHead idx={c ? "09 / TOPICS" : "02 / TOPICS"} title="Monitored topics" hid="h-topics" desc={<>Manage them on the <Link href="/topics">Topics page</Link> (passcode needed), stored in Neon Postgres. New keywords are backfilled for 14 days. <Link href="/about">How the numbers are counted</Link>.</>} />
               <div className="topics">
-                {cats.length === 0 ? <p className="muted">No active topics. Switch at least one keyword on in the topics table (Neon: Tables).</p> : cats.map((cat) => (
+                {cats.length === 0 ? <p className="muted">No active topics. Switch at least one keyword on in the Topics page.</p> : cats.map((cat) => (
                   <div className="row" key={cat}>
                     <strong>{cat}</strong>
                     {data.topics.filter((t) => t.category === cat).map((t) => <span className="kwtag" key={t.id}>{t.keyword}</span>)}

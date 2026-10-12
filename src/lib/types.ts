@@ -21,9 +21,10 @@ export interface RawPost {
 }
 
 export interface Topic {
-  id: number;
-  category: string;
-  keyword: string;
+  id: number; // permanent keyword id
+  category_id: number; // permanent category id
+  category: string; // current category name (label only)
+  keyword: string; // current keyword text (label only)
   active: boolean;
   created_at: string;
 }
@@ -57,8 +58,10 @@ export type TrendKind =
 
 export interface StatRow {
   level: "category" | "keyword";
-  category: string;
-  keyword: string;
+  category_id: number;
+  topic_id: number; // 0 for category rows
+  category: string; // label at the time of the run
+  keyword: string; // label at the time of the run ("" for category rows)
   current_count: number;
   previous_count: number;
   pct_change: number | null;
