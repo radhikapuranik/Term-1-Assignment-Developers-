@@ -3,7 +3,7 @@ import { IBM_Plex_Sans, IBM_Plex_Mono, Bricolage_Grotesque } from "next/font/goo
 import "./globals.css";
 
 const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "600"], variable: "--font-plex-sans", display: "swap" });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400"], variable: "--font-plex-mono", display: "swap", preload: false });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400"], variable: "--font-plex-mono", display: "swap" });
 const display = Bricolage_Grotesque({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-display", display: "swap" });
 
 const description = "A weekly digest of what developers are struggling with in code review, CI/CD and workflow, from live Hacker News, Dev.to and Stack Overflow discussions.";
