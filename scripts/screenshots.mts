@@ -35,7 +35,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.waitForTimeout(1200);
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(600);
-    } else if (slow) await page.waitForTimeout(2500);
+    } else if (slow) await page.waitForTimeout(7000);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     const name = `${state}-${w}-${scheme}`;
     await page.screenshot({ path: `docs/screenshots/${name}.png`, fullPage: !slow });
